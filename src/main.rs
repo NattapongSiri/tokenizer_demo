@@ -34,10 +34,6 @@ fn main() {
     let clean_dict_path = "data/lexitron_mod.txt";
     let dict = clean_dict(original_dict_path, clean_dict_path).unwrap();
     let words: Vec<String> = dict.into_iter().collect(); // turn hashset into vec
-    let mut predicted_positive = 0;
-    let mut actual_positive = 0;
-    let mut true_positive = 0;
-    let begin = Instant::now();
     let mut cumulative_f1 = 0f64;
     let montecarlo_times = 10;
     let sampling_size = 200;
@@ -45,17 +41,31 @@ fn main() {
     let mut rng = rand::thread_rng();
 
     for sim_idx in 0..montecarlo_times {
+        let mut predicted_positive = 0;
+        let mut actual_positive = 0;
+        let mut true_positive = 0;
+
         let sample: Vec<&String> = words.choose_multiple(&mut rng, sampling_size).collect();
         let split_point = (sampling_size as f64 * validation_ratio) as usize;
         let words = &sample[split_point..]; // Only add portion of words to dict to see how it handle unknown word
         let instantiate_time = Instant::now();
         let tokenizer = th::Tokenizer::from(words);
         println!("Simulation {} has total tokenizer instantiate time {} ms", sim_idx, instantiate_time.elapsed().as_millis());
+        // let dict = tokenizer::dict::SizedDict::from(words);
+
+        let begin = Instant::now();
 
         // trigram word validation
         permutator::k_permutation(&sample, 3, |product| {
             let combined = format!("{}{}{}", product[0], product[1], product[2]);
+            let mut byte_count = 0;
+            let expected : Vec<&str> = product.iter().map(|p| {
+                let slice = &combined[byte_count..(byte_count + p.len())];
+                byte_count += p.len();
+                slice
+            }).collect();
             let tokens = tokenizer.tokenize(&combined);
+            // let tokens = th::tokenize(&dict, combined.as_str());
             actual_positive += 3;
             predicted_positive += tokens.len();
 
@@ -70,7 +80,8 @@ fn main() {
                     i += 1;
                 }
 
-                if tokens[i - 1] == product[j].as_str() {
+                if std::ptr::eq(tokens[i - 1], expected[j]) { 
+                    // compare by slice attribute rather than entire str comparison
                     true_positive += 1;
                 }
 
@@ -81,6 +92,7 @@ fn main() {
         let processed_time = begin.elapsed().as_millis();
         let precision = (true_positive as f64) / (predicted_positive as f64);
         let recall = (true_positive as f64) / (actual_positive as f64);
+        
         let f1_score = 2f64 * (precision * recall) / (precision + recall);
         cumulative_f1 += f1_score;
 

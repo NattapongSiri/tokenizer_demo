@@ -9,5 +9,5 @@ edition = "2018"
 [dependencies]
 rand="^0.7"
 permutator="^0.4"
-# tokenizer={git="https://github.com/NattapongSiri/tokenizer_rs.git", branch="0.1.1"}
-tokenizer={path="../tokenizer_rs"}
+tokenizer={git="https://github.com/NattapongSiri/tokenizer_rs.git", branch="0.1.1", features=["single-thread"]}
+# tokenizer={path="../tokenizer_rs", features=["single-thread"]}
